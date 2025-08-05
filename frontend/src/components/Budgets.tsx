@@ -1,7 +1,7 @@
 import React from 'react';
 import { Row, Col, Card, Button, Form, ProgressBar, Badge } from 'react-bootstrap';
 
-// Dados de exemplo para os orçamentos
+
 const sampleBudgets = [
     { category: 'Alimentação', limit: 800.00, spent: 620.45 },
     { category: 'Transporte', limit: 300.00, spent: 150.00 },

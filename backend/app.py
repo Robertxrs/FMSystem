@@ -1,22 +1,54 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from datetime import datetime
 from supabase import create_client, Client
+from datetime import datetime
+from collections import defaultdict
 
-
+# --- Configuração Inicial ---
 app = Flask(__name__)
 CORS(app)
 
+# --- Configuração do Supabase ---
 SUPABASE_URL = "https://ieoyvwgklozreyvdhabr.supabase.co"
-SUPABASE_KEY = (
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imllb3l2d2drbG96cmV5dmRoYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMzg0NjQsImV4cCI6MjA2OTgxNDQ2NH0."
-    "RmT5Augx2WthlPC6KYhoR3VEt7tvfQPIfUNiilyJdYk"
-)
+# A sua chave anon/public do Supabase
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imllb3l2d2drbG96cmV5dmRoYWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMzg0NjQsImV4cCI6MjA2OTgxNDQ2NH0.RmT5Augx2WthlPC6KYhoR3VEt7tvfQPIfUNiilyJdYk"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# --- Rota para estatísticas do Dashboard ---
+@app.route("/api/stats", methods=["GET"])
+def get_dashboard_stats():
+    try:
+        response = supabase.table("transactions").select("*").execute()
+        transactions = response.data
 
+        saldo_total = sum(t["amount"] for t in transactions)
+
+        now = datetime.now()
+        receitas_mes = 0
+        despesas_mes = 0
+
+        for t in transactions:
+            transaction_date = datetime.strptime(t["date"], '%Y-%m-%d')
+            if transaction_date.year == now.year and transaction_date.month == now.month:
+                if t["type"] == "income":
+                    receitas_mes += t["amount"]
+                elif t["type"] == "expense":
+                    despesas_mes += t["amount"] # O valor já é negativo
+
+        # A economia é a soma, pois as despesas são negativas (ex: 5000 + (-4000) = 1000)
+        economia_mes = receitas_mes + despesas_mes
+
+        return jsonify({
+            "saldoTotal": saldo_total,
+            "receitasMes": receitas_mes,
+            "despesasMes": abs(despesas_mes), # Retornamos o valor absoluto para exibição
+            "economiaMes": economia_mes
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- Rotas de Transações (CRUD) ---
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     try:
@@ -25,95 +57,68 @@ def get_transactions():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     data = request.get_json()
-    print("Dados recebidos:", data)
-
     if not data or not all(k in data for k in ['description', 'amount', 'date', 'category', 'type']):
         return jsonify({'error': 'Missing data'}), 400
-
     try:
         transaction = {
-            'description': data['description'],
-            'amount': float(data['amount']),
-            'date': data['date'],
-            'category': data['category'],
-            'type': data['type']
+            'description': data['description'], 'amount': float(data['amount']),
+            'date': data['date'], 'category': data['category'], 'type': data['type']
         }
         response = supabase.table('transactions').insert(transaction).execute()
-
-        if response.data and len(response.data) > 0:
+        if response.data:
             return jsonify(response.data[0]), 201
-        else:
-            return jsonify({'error': 'Failed to insert data into Supabase'}), 500
-
+        return jsonify({'error': 'Failed to insert data'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/transactions/<int:transaction_id>', methods=['PUT'])
 def update_transaction(transaction_id):
     data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Missing data'}), 400
     try:
-        update_data = {
-            'description': data.get('description'),
-            'amount': float(data.get('amount')),
-            'date': data.get('date'),
-            'category': data.get('category'),
-            'type': data.get('type')
-        }
-        response = supabase.table('transactions').update(update_data).eq('id', transaction_id).execute()
+        response = supabase.table('transactions').update(data).eq('id', transaction_id).execute()
         if response.data:
             return jsonify(response.data[0]), 200
-        else:
-            return jsonify({'error': 'Transaction not found or failed to update'}), 404
+        return jsonify({'error': 'Transaction not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# --- Rota para excluir uma transação (DELETE) ---
 @app.route('/api/transactions/<int:transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
     try:
         response = supabase.table('transactions').delete().eq('id', transaction_id).execute()
         if response.data:
-            return jsonify({'message': 'Transaction deleted successfully'}), 200
-        else:
-            return jsonify({'error': 'Transaction not found or failed to delete'}), 404
+            return jsonify({'message': 'Deleted'}), 200
+        return jsonify({'error': 'Transaction not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-# --- Nova Rota para Relatórios ---
+# --- Rota de Relatórios ---
 @app.route('/api/reports', methods=['GET'])
 def get_report():
     month_filter = request.args.get('month')
     if not month_filter:
         return jsonify({'error': 'Month parameter is required'}), 400
-
     try:
         year, month = map(int, month_filter.split('-'))
-
         response = supabase.table('transactions').select("category", "amount") \
             .eq('type', 'expense') \
             .gte('date', f'{year}-{month:02d}-01') \
             .lte('date', f'{year}-{month:02d}-31') \
             .execute()
+        
         expenses_by_category = defaultdict(float)
         for transaction in response.data:
             expenses_by_category[transaction['category']] += abs(transaction['amount'])
-        report_data = {
+            
+        return jsonify({
             'labels': list(expenses_by_category.keys()),
             'data': list(expenses_by_category.values())
-        }
-        return jsonify(report_data)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
 
 # --- Rodar o servidor ---
 if __name__ == '__main__':

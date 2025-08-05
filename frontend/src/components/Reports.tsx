@@ -12,7 +12,7 @@ interface ReportData {
 const Reports = () => {
     const reportChartRef = useRef<Chart | null>(null);
     const [reportData, setReportData] = useState<ReportData | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
     const generateReport = async (month: string) => {
         try {
@@ -22,13 +22,12 @@ const Reports = () => {
             setReportData(response.data);
         } catch (error) {
             console.error("Erro ao gerar relatório:", error);
-            setReportData({ labels: [], data: [] }); 
+            setReportData({ labels: [], data: [] });
         }
     };
     useEffect(() => {
         generateReport(selectedMonth);
     }, []);
-
     useEffect(() => {
         if (reportChartRef.current) {
             reportChartRef.current.destroy();
@@ -59,6 +58,7 @@ const Reports = () => {
                 }
             }
         }
+
         return () => {
             if (reportChartRef.current) {
                 reportChartRef.current.destroy();
