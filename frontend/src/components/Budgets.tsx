@@ -1,87 +1,159 @@
-import React from 'react';
-import { Row, Col, Card, Button, Form, ProgressBar, Badge } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Button, Form, ProgressBar, Badge, Alert } from 'react-bootstrap';
+import apiClient from '../api';
 
+interface Budget {
+  id: number;
+  category: string;
+  limit: number;
+  spent: number;
+}
 
-const sampleBudgets = [
-    { category: 'Alimentação', limit: 800.00, spent: 620.45 },
-    { category: 'Transporte', limit: 300.00, spent: 150.00 },
-    { category: 'Lazer', limit: 400.00, spent: 350.00 },
-    { category: 'Saúde', limit: 500.00, spent: 180.00 },
-];
+const BudgetCard = ({ category, limit, spent }: Budget) => {
+  const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+  const variant = percentage > 90 ? 'danger' : percentage > 70 ? 'warning' : 'success';
+  const remaining = limit - spent;
 
-const BudgetCard = ({ category, limit, spent }: { category: string, limit: number, spent: number }) => {
-    const percentage = Math.round((spent / limit) * 100);
-    const variant = percentage > 90 ? 'danger' : percentage > 70 ? 'warning' : 'success';
-    const remaining = limit - spent;
-
-    return (
-        <Card className="shadow-sm border-0 rounded-3 h-100">
-            <Card.Body>
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                    <Card.Title as="h3" className="fs-6 fw-bold mb-0">{category}</Card.Title>
-                    <Badge pill bg={variant}>{percentage}%</Badge>
-                </div>
-                <ProgressBar now={percentage} variant={variant} className="mb-2" />
-                <div className="d-flex justify-content-between text-muted small">
-                    <span>Gasto: {spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                    <span>Restante: {remaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                </div>
-                 <div className="text-center text-muted small mt-1">
-                    Limite: {limit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </div>
-            </Card.Body>
-        </Card>
-    );
+  return (
+    <Card className="shadow-sm border-0 rounded-3 h-100">
+      <Card.Body>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <Card.Title as="h3" className="fs-6 fw-bold mb-0">{category}</Card.Title>
+          <Badge pill bg={variant}>{percentage}%</Badge>
+        </div>
+        <ProgressBar now={percentage} variant={variant} className="mb-2" />
+        <div className="d-flex justify-content-between text-muted small">
+          <span>Gasto: {spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <span>Restante: {remaining.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+        </div>
+        <div className="text-center text-muted small mt-1">
+          Limite: {limit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        </div>
+      </Card.Body>
+    </Card>
+  );
 };
 
 const Budgets = () => {
-    return (
-        <div className="p-4 p-lg-5">
-            <h2 className="fs-2 fw-bold mb-4">Orçamentos Mensais</h2>
-            
-            <Row className="mb-4">
-                <Col>
-                    <Card className="shadow-sm border-0 rounded-3">
-                        <Card.Body>
-                            <Card.Title as="h3" className="fs-5 fw-bold mb-3">Criar Novo Orçamento</Card.Title>
-                            <Form as={Row} className="g-3 align-items-end">
-                                <Col md={5}>
-                                    <Form.Group controlId="budgetCategory">
-                                        <Form.Label>Categoria</Form.Label>
-                                        <Form.Select>
-                                            <option>Selecione...</option>
-                                            <option value="moradia">Moradia</option>
-                                            <option value="alimentacao">Alimentação</option>
-                                            <option value="transporte">Transporte</option>
-                                            <option value="lazer">Lazer</option>
-                                            <option value="saude">Saúde</option>
-                                        </Form.Select>
-                                    </Form.Group>
-                                </Col>
-                                <Col md={5}>
-                                    <Form.Group controlId="budgetLimit">
-                                        <Form.Label>Limite Mensal</Form.Label>
-                                        <Form.Control type="number" placeholder="R$ 0,00" />
-                                    </Form.Group>
-                                </Col>
-                                <Col md={2} className="d-grid">
-                                    <Button variant="primary">Criar</Button>
-                                </Col>
-                            </Form>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [formData, setFormData] = useState({ category: '', limit: '' });
+  const [message, setMessage] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-            <Row xs={1} md={2} lg={3} className="g-4">
-                {sampleBudgets.map(budget => (
-                    <Col key={budget.category}>
-                        <BudgetCard {...budget} />
-                    </Col>
-                ))}
+  const fetchBudgets = async (month: string) => {
+    try {
+      const response = await apiClient.get('/budgets', { params: { month } });
+      setBudgets(response.data);
+    } catch {
+      setMessage({ type: 'danger', text: 'Não foi possível carregar os orçamentos.' });
+    }
+  };
+
+  useEffect(() => {
+    fetchBudgets(selectedMonth);
+  }, [selectedMonth]);
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, category: e.target.value }));
+  };
+
+  const handleLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, limit: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const newBudget = {
+        category: formData.category,
+        limit: parseFloat(formData.limit),
+        month: selectedMonth
+      };
+      await apiClient.post('/budgets', newBudget);
+      setMessage({ type: 'success', text: 'Orçamento criado com sucesso!' });
+      fetchBudgets(selectedMonth);
+      setFormData({ category: '', limit: '' });
+    } catch {
+      setMessage({ type: 'danger', text: 'Erro ao criar orçamento.' });
+    }
+  };
+
+  return (
+    <div className="p-4 p-lg-5">
+      <h2 className="fs-2 fw-bold mb-4">Orçamentos Mensais</h2>
+
+      {message && (
+        <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>
+          {message.text}
+        </Alert>
+      )}
+
+      <Card className="shadow-sm border-0 rounded-3 mb-4">
+        <Card.Body>
+          <Form onSubmit={handleSubmit}>
+            <Row className="g-3 align-items-end">
+              <Col md={4}>
+                <Form.Group controlId="month">
+                  <Form.Label>Mês do Orçamento</Form.Label>
+                  <Form.Control
+                    type="month"
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={3}>
+                <Form.Group controlId="category">
+                  <Form.Label>Categoria</Form.Label>
+                  <Form.Select
+                    value={formData.category}
+                    onChange={handleCategoryChange}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Moradia">Moradia</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Saúde">Saúde</option>
+                    <option value="Outros">Outros</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+
+              <Col md={3}>
+                <Form.Group controlId="limit">
+                  <Form.Label>Limite Mensal</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={formData.limit}
+                    onChange={handleLimitChange}
+                    placeholder="R$ 0,00"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={2} className="d-grid">
+                <Button variant="primary" type="submit">
+                  Criar
+                </Button>
+              </Col>
             </Row>
-        </div>
-    );
+          </Form>
+        </Card.Body>
+      </Card>
+
+      <Row xs={1} md={2} lg={3} className="g-4">
+        {budgets.map(b => (
+          <Col key={b.id}>
+            <BudgetCard {...b} />
+          </Col>
+        ))}
+      </Row>
+    </div>
+  );
 };
 
 export default Budgets;
