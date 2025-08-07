@@ -28,6 +28,7 @@ const SidebarContent = ({ currentPath }: SidebarContentProps) => (
             <Nav.Link as={Link} to="/transactions" eventKey="/transactions">Transações</Nav.Link>
             <Nav.Link as={Link} to="/reports" eventKey="/reports">Relatórios</Nav.Link>
             <Nav.Link as={Link} to="/budgets" eventKey="/budgets">Orçamentos</Nav.Link>
+            <Nav.Link as={Link} to="/goals" eventKey="/goals">Metas</Nav.Link>
         </Nav>
     </div>
 );

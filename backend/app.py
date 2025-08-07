@@ -145,6 +145,87 @@ def add_budget():
         return jsonify(resp.data[0]), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+
+
+
+
+
+
+
+
+
+
+# --- Novas Rotas para Metas de Poupança ---
+
+@app.route('/api/goals', methods=['GET'])
+def get_goals():
+    try:
+        response = supabase.table('goals').select("*").order('created_at').execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/goals', methods=['POST'])
+def add_goal():
+    data = request.get_json()
+    if not data or not all(k in data for k in ['name', 'target_amount']):
+        return jsonify({'error': 'Missing data'}), 400
+    try:
+        goal_data = {
+            'name': data['name'],
+            'target_amount': float(data['target_amount']),
+            'saved_amount': float(data.get('saved_amount', 0))
+        }
+        response = supabase.table('goals').insert(goal_data).execute()
+        if response.data:
+            return jsonify(response.data[0]), 201
+        else:
+            return jsonify({'error': 'Failed to create goal'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/goals/<int:goal_id>', methods=['PUT'])
+def update_goal(goal_id):
+    data = request.get_json()
+    try:
+        update_data = {}
+        if 'name' in data:
+            update_data['name'] = data['name']
+        if 'target_amount' in data:
+            update_data['target_amount'] = float(data['target_amount'])
+        if 'saved_amount' in data:
+            update_data['saved_amount'] = float(data['saved_amount'])
+
+        response = supabase.table('goals').update(update_data).eq('id', goal_id).execute()
+        if response.data:
+            return jsonify(response.data[0]), 200
+        else:
+            return jsonify({'error': 'Meta não encontrada'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/goals/<int:goal_id>', methods=['DELETE'])
+def delete_goal(goal_id):
+    try:
+        response = supabase.table('goals').delete().eq('id', goal_id).execute()
+        if response.data:
+            return jsonify({'message': 'Meta excluída com sucesso'}), 200
+        else:
+            return jsonify({'error': 'Meta não encontrada'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

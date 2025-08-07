@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Reports from './components/Reports';
 import Budgets from './components/Budgets';
+import Goals from './components/Goals';
 
 function AppContent() {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -30,6 +31,7 @@ function AppContent() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/budgets" element={<Budgets />} />
+                        <Route path="/goals" element={<Goals />} />
           </Routes>
         </Col>
       </Row>
