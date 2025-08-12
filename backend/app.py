@@ -38,30 +38,30 @@ def get_dashboard_stats():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+
+
+
+
+
 
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     try:
-        resp = supabase.table('transactions').select("*").order('date', desc=True).execute()
-        return jsonify(resp.data)
+        response = supabase.table('transactions').select("*").order('date', desc=True).execute()
+        return jsonify(response.data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     data = request.get_json()
-    if not data or not all(k in data for k in ('description', 'amount', 'date', 'category', 'type')):
-        return jsonify({'error': 'Missing data'}), 400
+    # Adiciona o campo 'is_paid' com valor padrão True ao criar
+    data['is_paid'] = data.get('is_paid', True)
     try:
-        transaction = {
-            'description': data['description'],
-            'amount': float(data['amount']),
-            'date': data['date'],
-            'category': data['category'],
-            'type': data['type']
-        }
-        resp = supabase.table('transactions').insert(transaction).execute()
-        return jsonify(resp.data[0]), 201
+        response = supabase.table('transactions').insert(data).execute()
+        return jsonify(response.data[0]), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -69,18 +69,25 @@ def add_transaction():
 def update_transaction(transaction_id):
     data = request.get_json()
     try:
-        resp = supabase.table('transactions').update(data).eq('id', transaction_id).execute()
-        return jsonify(resp.data[0]), 200
+        response = supabase.table('transactions').update(data).eq('id', transaction_id).execute()
+        return jsonify(response.data[0]), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/transactions/<int:transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
     try:
-        resp = supabase.table('transactions').delete().eq('id', transaction_id).execute()
+        supabase.table('transactions').delete().eq('id', transaction_id).execute()
         return jsonify({'message': 'Deleted'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
 
 @app.route('/api/reports', methods=['GET'])
 def get_report():
@@ -102,6 +109,21 @@ def get_report():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route('/api/budgets', methods=['GET'])
 def get_budgets_with_progress():
@@ -138,16 +160,41 @@ def get_budgets_with_progress():
 @app.route('/api/budgets', methods=['POST'])
 def add_budget():
     data = request.get_json()
-    if not data or not all(k in data for k in ('category', 'limit', 'month')):
+    if not data or not all(k in data for k in ['category', 'limit', 'month']):
         return jsonify({'error': 'Missing data'}), 400
     try:
-        resp = supabase.table('budgets').insert(data).execute()
-        return jsonify(resp.data[0]), 201
+        response = supabase.table('budgets').insert(data).execute()
+        if response.data and len(response.data) > 0:
+            return jsonify(response.data[0]), 201
+        else:
+            return jsonify({'error': 'Falha ao inserir dados no Supabase', 'details': str(response.error)}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
 
+@app.route('/api/budgets/<int:budget_id>', methods=['PUT'])
+def update_budget(budget_id):
+    data = request.get_json()
+    if not data or 'limit' not in data:
+        return jsonify({'error': 'Missing limit data'}), 400
+    try:
+        update_data = {'limit': float(data['limit'])}
+        response = supabase.table('budgets').update(update_data).eq('id', budget_id).execute()
+        if response.data:
+            return jsonify(response.data[0]), 200
+        return jsonify({'error': 'Budget not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
+@app.route('/api/budgets/<int:budget_id>', methods=['DELETE'])
+def delete_budget(budget_id):
+    try:
+        response = supabase.table('budgets').delete().eq('id', budget_id).execute()
+        if response.data:
+            return jsonify({'message': 'Deleted'}), 200
+        return jsonify({'error': 'Budget not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 
