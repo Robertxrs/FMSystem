@@ -38,13 +38,6 @@ def get_dashboard_stats():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-
-
-
-
-
-
 
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
@@ -57,7 +50,6 @@ def get_transactions():
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     data = request.get_json()
-    # Adiciona o campo 'is_paid' com valor padrão True ao criar
     data['is_paid'] = data.get('is_paid', True)
     try:
         response = supabase.table('transactions').insert(data).execute()
@@ -82,13 +74,6 @@ def delete_transaction(transaction_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-
-
-
-
-
-
 @app.route('/api/reports', methods=['GET'])
 def get_report():
     month = request.args.get('month', '')
@@ -109,20 +94,6 @@ def get_report():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 @app.route('/api/budgets', methods=['GET'])
